@@ -1,3 +1,4 @@
+import json
 from typing import Final
 import os
 import discord
@@ -9,6 +10,7 @@ from responses import get_responses
 # Load environment variables
 load_dotenv()
 TOKEN: Final[str] = os.getenv('DISCORD_TOKEN')
+DATA_FILE: Final[str] = 'word_responses.json'
 
 # Initialize bot with necessary intents
 intents: Intents = Intents.default()
@@ -18,8 +20,25 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Dictionary to store word-response pairs
 word_responses = {}
 
+# Counts user words to limit
+user_word_count = {}
+
 # Track users being prompted for responses
 awaiting_responses = {}
+
+def save_data():
+    with open(DATA_FILE, 'w') as f:
+        json.dump({"word_responses": word_responses, "user_word_count": user_word_count}, f)
+
+def load_data():
+    global word_responses, user_word_count
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, 'r') as f:
+            data = json.load(f)
+            word_responses = data.get('word_responses', {})
+            user_word_count = data.get('user_word_count', {})
+
+load_data()
 
 # Function to send message responses
 async def send_message(message: Message, user_message: str) -> None:
@@ -50,13 +69,22 @@ async def on_ready() -> None:
 
 # Adds a word to the list
 @bot.tree.command(name="addword", description="Add a trigger word")
-@app_commands.describe(word="The word you want to add")
-async def addword(interaction: discord.Interaction, word: str):
+@app_commands.describe(word="The word you want to add", response="The response you want to add")
+async def addword(interaction: discord.Interaction, word: str, response: str):
+    user_id = str(interaction.user.id)
+    user_count = user_word_count.get(user_id, 0)
+
+    if user_count >= 4:
+        await interaction.response.send_message("Can't make anymore words datebayo baka")
+        return
+
     if word in word_responses:
-        await interaction.response.send_message(f"'{word}' is already in the list.", ephemeral=True, delete_after=5)
+        await interaction.response.send_message(f"'{word}' is already in the list.", ephemeral=True)
     else:
-        awaiting_responses[interaction.user.id] = word
-        await interaction.response.send_message(f"Added '{word}'. Please provide a response for this word.", ephemeral=True, delete_after=5)
+        word_responses[word] = response
+        user_word_count[user_id] = user_count + 1
+        save_data()
+        await interaction.response.send_message(f"Added '{word}' and response '{response}'.", ephemeral=True)
     print(f"{interaction.user} added word '{word}'")
 
 # Deletes a word from the list
@@ -65,10 +93,13 @@ async def addword(interaction: discord.Interaction, word: str):
 async def delword(interaction: discord.Interaction, word: str):
     if word in word_responses:
         del word_responses[word]
-        await interaction.response.send_message(f"Deleted '{word}'.", ephemeral=True, delete_after=5)
+        user_id = str(interaction.user.id)
+        user_word_count[user_id] = max(0, user_word_count.get(user_id, 0) - 1)
+        save_data()
+        await interaction.response.send_message(f"Deleted '{word}'.", ephemeral=True)
     else:
-        await interaction.response.send_message(f"'{word}' is not in the list.", ephemeral=True, delete_after=5)
-    print(f"{interaction.user} deleted word '{word}'", ephemeral=True, delete_after=5)
+        await interaction.response.send_message(f"'{word}' is not in the list.", ephemeral=True)
+    print(f"{interaction.user} deleted word '{word}'")
 
 # List all words in the list
 @bot.tree.command(name="listwords", description="List all trigger words")
@@ -88,9 +119,12 @@ async def on_message(message: discord.Message):
 
     print(f"Message received from {message.author}: {message.content}")
 
+    await bot.process_commands(message)  # Ensure this is called once
+
     if message.author.id in awaiting_responses:
         word = awaiting_responses.pop(message.author.id)
         word_responses[word] = message.content
+        save_data()
         await message.channel.send(f"Response for '{word}' has been created.")
         print(f"Response for '{word}' set by {message.author}: {message.content}")
     else:
@@ -106,8 +140,6 @@ async def on_message(message: discord.Message):
             if response:
                 await message.channel.send(response)
                 print("")
-
-    await bot.process_commands(message)
 
 def main() -> None:
     bot.run(TOKEN)
