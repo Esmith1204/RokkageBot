@@ -111,6 +111,33 @@ async def listwords(interaction: discord.Interaction):
         await interaction.response.send_message("No words have been added yet.")
     print(f"{interaction.user} requested the list of words")
 
+# Hard resest all saved chat responses
+@bot.tree.command(name="hardreset", description="Clear all saved words and responses")
+async def hardreset(interaction: discord.Interaction):
+    global word_responses, user_word_count
+
+    await interaction.response.send_message(
+        "Are you sure you want reset every saved response sigma?"
+    )
+
+    def check(m: discord.Message):
+        return m.author == interaction.user and m.channel == interaction.channel
+    
+    try:
+        confirmation = await bot.wait_for("message", check=check, timeout=30)
+        if confirmation.content.lower() == "yes":
+            word_responses.clear()
+            user_word_count.clear()
+            save_data()
+            await interaction.followup.send("Reset cancelled.", ephemeral=True)
+            print(f"{interaction.user} performed a hard reset of all responses.")
+        else:
+            await interaction.followup.send("Reset was canceled", ephemeral=True)
+
+    except Exception as e:
+        await interaction.followup.send("No response received. Reset cacneled.", ephemeral=True)
+        print(f"Hard reset timed out {e}")
+
 # Handle messages
 @bot.event
 async def on_message(message: discord.Message):
