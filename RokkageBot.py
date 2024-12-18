@@ -129,13 +129,13 @@ async def hardreset(interaction: discord.Interaction):
             word_responses.clear()
             user_word_count.clear()
             save_data()
-            await interaction.followup.send("Reset cancelled.", ephemeral=True)
+            await interaction.followup.send("Reset successful.", ephemeral=True)
             print(f"{interaction.user} performed a hard reset of all responses.")
         else:
             await interaction.followup.send("Reset was canceled", ephemeral=True)
 
     except Exception as e:
-        await interaction.followup.send("No response received. Reset cacneled.", ephemeral=True)
+        await interaction.followup.send("No response received. Reset canceled.", ephemeral=True)
         print(f"Hard reset timed out {e}")
 
 # Handle messages
@@ -167,6 +167,36 @@ async def on_message(message: discord.Message):
             if response:
                 await message.channel.send(response)
                 print("")
+
+@bot.tree.command(name="secret", description="Secret access: Invite only")
+@app_commands.describe(code="4 Digit Code")
+async def secret(interaction: discord.Interaction, code: str)
+    secret_code = "1221"
+    secret_message = """
+    Hi, You’re 20 now just like me. I hope fatherhood 
+    is treating you well. Hope the kid is doing well too. 
+
+    My family always told me to surround myself with good people. I guess I wasn’t too good at, that when I was in high school, 
+    because I had degenerate friends who played League all day. Probably explains why I was still 'bro' presenting when you 
+    first saw me. I was slowly morphing out of that phase but meeting you must’ve been some kind of butterfly effect. I have 
+    become the best version of myself because of you. I can’t pinpoint exactly what it is but I think it’s because I see how 
+    much you’ve done to get where you are and I tell myself “I want to be like that and live that life.” 
+    We’ve shared so many experiences together, both good and bad. We’re so close that I see your achievements in school and 
+    I get happy seeing you happy and I’m sure it’s the same way for you too. Thanks for saving my dumbass from comfort. I want 
+    to continue seeing you go up in life. I see so much of the work you do and dedication you have and you 
+    deserve everything good that comes at you.
+
+    Here’s to being 20.
+    Obviously the best wishes from me,
+
+    Rokkage
+    """
+    if code == secret_code:
+        await interaction.response.send_message(secret_message, ephemeral=True)
+        print(f"{interaction.user} entered the correct code.")
+    else:
+        await interaction.response.send_message("Incorrect code.", ephemeral=True)
+        print(f"{interaction.user} entered the incorrect code.")
 
 def main() -> None:
     bot.run(TOKEN)
